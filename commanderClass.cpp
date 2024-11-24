@@ -1,10 +1,11 @@
-#include <list>
+#include <vector>
+#include <iostream>
 #include <random>
-#include "commGenerator.h"
+#include "commanderClass.h"
 
 using namespace std;
 
-void genComm(list<Command>& commList, const int commandCount, const int inCacheChance)
+void genComm(vector<Command>& commList, const int commandCount, const int inCacheChance)
 {
 	random_device rd;
 	mt19937 gen(rd()); // Мерсеннский твистер
@@ -97,5 +98,19 @@ void genComm(list<Command>& commList, const int commandCount, const int inCacheC
 			commList.push_back(comm);
 		}
 
+	}
+}
+
+void printCommands(vector<Command> cmdVect)
+{
+	for (const auto& item : cmdVect)
+	{
+		Command currCom = item;
+
+		// вывод команд
+		cout << item.getId() << ") \t" << item.getDuration() << "(";
+		if (item.getInCacheState() == 1) cout << "кэш "; else cout << "н.к ";
+		if (item.getUO() == 1) cout << "УО"; else cout << "__";
+		cout << ")" << endl;
 	}
 }
