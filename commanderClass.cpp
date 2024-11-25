@@ -101,6 +101,33 @@ void genComm(vector<Command>& commList, const int commandCount, const int inCach
 	}
 }
 
+void getUserComm(vector<Command>& commList)
+{
+	int count;
+	cout << endl << "Введите количество команд -> ";
+	cin >> count;
+
+	for (int c = 0; c < count; c++)
+	{
+		cout << "Команда # " << c;
+		cout << endl << "Введите длительность команды -> ";
+		int duration;
+		cin >> duration;
+
+		cout << endl << "Введите состояние К/ Н.К. команды -> ";
+		bool commInCache;
+		cin >> commInCache;
+
+		cout << endl << "Введите тип УО/_ команды -> ";
+		bool type;
+		cin >> type;
+
+		Command comm(c, duration, commInCache, type);
+		commList.push_back(comm);
+	}
+
+}
+
 void printCommands(vector<Command> cmdVect)
 {
 	for (const auto& item : cmdVect)

@@ -67,4 +67,5 @@ public:
 };
 
 void genComm(vector<Command>& commList, const int commandCount, const int inCacheChance);
+void getUserComm(vector<Command>& commList);
 void printCommands(vector<Command> cmdVect);
