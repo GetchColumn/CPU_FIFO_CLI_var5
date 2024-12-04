@@ -11,7 +11,8 @@ class Command
 	bool inCache;	// признак нахождения в кэше 1- КЭШ, 0- Н.К.
 	bool UO;	// тип команды. 1-требует СШ, 0- не требует СШ
 	bool floatType; // признак типа с плавающей точкой
-	bool done;	// признак выполненности команды
+	bool decoded;	// признак того что команда декодирована
+	bool done;	// признак выполненной команды
 
 public:
 	Command()
@@ -21,6 +22,8 @@ public:
 		inCache = false;
 		UO = false;
 		done = false;
+		floatType = false;
+		decoded = false;
 	}
 
 	Command(int _id, int _duration, bool _inCache, bool _type)
@@ -30,6 +33,9 @@ public:
 		inCache = _inCache;
 		UO = _type;
 		done = false;
+		decoded = false;
+		// для 2 лр
+		floatType = false;
 	}
 
 	int getId() const
@@ -48,13 +54,13 @@ public:
 	{
 		return UO;
 	}
+	bool isDecoded() const
+	{
+		return decoded;
+	}
 	bool getStatus() const
 	{
 		return done;
-	}
-	void markDone()
-	{
-		done = true;
 	}
 	bool isDone()
 	{
@@ -63,6 +69,18 @@ public:
 	bool isFloat()
 	{
 		return floatType;
+	}
+	void setInCache()
+	{
+		inCache = true;
+	}
+	void markDone()
+	{
+		done = true;
+	}
+	void markDecoded()
+	{
+		decoded = true;
 	}
 };
 

@@ -6,16 +6,17 @@
 #include "modelClass.h"
 
 #define COMM_IN_CACHE 75
-#define COMM_COUNT 10
+#define COMM_COUNT 15
 
 using namespace std;
 
-vector<Command> commandListFull;
+vector<Command> commandListFull; // список команд, к которому имеют прямой доступ МП и КК
 SystemBus SB;
 CacheController CC1(&SB);
-Microprocessor MP1(commandListFull, &SB, &CC1);
+Microprocessor MP1(&SB, &CC1);
 
 void step();
+bool checkCommsIsDone(vector<Command> comms);
 
 int main()
 {
@@ -24,24 +25,50 @@ int main()
     SetConsoleOutputCP(1251);
 
     setlocale(LC_ALL, "Russian");
-    genComm(commandListFull, COMM_COUNT, COMM_IN_CACHE); // генерация списка команд
-  
-    //for (const auto& item : commandListFull)
-    //{
-    //    Command currCom = item;
+    //genComm(commandListFull, COMM_COUNT, COMM_IN_CACHE); // генерация списка команд
+    getUserComm(commandListFull);
+ 
+    for (const auto& item : commandListFull)
+    {
+        Command currCom = item;
 
-    //    // вывод команд
-    //    cout << item.getId() << ") \t" << item.getDuration() << "(";
-    //    if (item.getInCacheState() == 1) cout << "кэш "; else cout << "н.к ";
-    //    if (item.getType() == 1) cout << "УО"; else cout << "__";
-    //    cout << ")" << endl;
-    //}
+        // вывод команд
+        cout << item.getId() << ") \t" << item.getDuration() << "(";
+        if (item.getInCacheState() == 1) cout << "кэш "; else cout << "н.к ";
+        if (item.getUO() == 1) cout << "УО"; else cout << "__";
+        cout << ")" << endl;
+    }
+    vector<Command> commsForDisplay = commandListFull; // команды для просмотра пользователем в окне
+    MP1.loadCommands(&commandListFull);
+    CC1.init(&commandListFull);
+    //MP1.printVars();
 
-    MP1.printVars();
-
+    int plotY = 0;
+    while (!checkCommsIsDone(commandListFull))
+    {
+        plotY++;
+        cout << endl << "Такт " << plotY << endl;
+        step();
+    }
 }
 
 void step()
 {
     MP1.step();
+    CC1.step();
+}
+
+bool checkCommsIsDone(vector<Command> comms)
+{
+    bool allDone = true;
+    for (const auto& item : comms)
+    {
+        Command cur = item;
+        if (!cur.isDone())
+        {
+            allDone = false;
+            return allDone;
+        }
+    }
+    return allDone;
 }
