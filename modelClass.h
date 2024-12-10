@@ -127,7 +127,6 @@ private:
 	SystemBus *SB_MP;
 	CacheController *CC_MP;
 	bool requestSB; // запрос на использование СШ
-	bool wait;     //находится ли процессор в режиме ожидания?
 	bool work;     //работает ли процессор?
 	int remainingTime;	// оставшееся время работы мп
 	bool workOnSB; // признак работы на СШ
@@ -135,6 +134,8 @@ private:
 	int comIndex;	// индекс текущей команды
 	deque<int> requestVect;
 public:
+
+	bool wait;     //находится ли процессор в режиме ожидания?
 
 	Microprocessor(SystemBus* _SB_MP, CacheController* _CC_MP) :currentCommand(nullptr), commandVectMP(nullptr), SB_MP(_SB_MP), CC_MP(_CC_MP),
 		requestSB(false), wait(false), work(false), remainingTime(0), workOnSB(false), convCount(1), comIndex(0), requestVect()
@@ -180,6 +181,16 @@ public:
 				workOnSB = false;
 				commandVectMP->at(comIndex).markDone();
 				comIndex++;
+
+				if (!requestVect.empty())
+				{
+					// вект запросов не пуст
+					if (commandVectMP->at(requestVect.at(0)).getInCacheState())
+					{
+						comIndex = requestVect.at(0);
+						requestVect.pop_front();
+					}
+				}
 			}
 		}
 

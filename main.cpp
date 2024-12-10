@@ -56,6 +56,7 @@ void step()
 {
     MP1.step();
     CC1.step();
+    if (MP1.wait == true) MP1.step();
 }
 
 bool checkCommsIsDone(vector<Command> comms)
