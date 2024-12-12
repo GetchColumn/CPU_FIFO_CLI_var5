@@ -109,16 +109,16 @@ void getUserComm(vector<Command>& commList)
 
 	for (int c = 0; c < count; c++)
 	{
-		cout << "Команда # " << c;
+		cout << endl << "Команда № " << c;
 		cout << endl << "Введите длительность команды -> ";
 		int duration;
 		cin >> duration;
 
-		cout << endl << "Введите состояние К/ Н.К. команды -> ";
+		cout << "Введите состояние К/ Н.К. (1/0) команды -> ";
 		bool commInCache;
 		cin >> commInCache;
 
-		cout << endl << "Введите тип УО/_ команды -> ";
+		cout << "Введите тип УО/_ (1/0) команды -> ";
 		bool type;
 		cin >> type;
 

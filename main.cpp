@@ -38,7 +38,7 @@ int main()
         if (item.getUO() == 1) cout << "УО"; else cout << "__";
         cout << ")" << endl;
     }
-    vector<Command> commsForDisplay = commandListFull; // команды для просмотра пользователем в окне
+
     MP1.loadCommands(&commandListFull);
     CC1.init(&commandListFull);
     //MP1.printVars();
@@ -54,9 +54,11 @@ int main()
 
 void step()
 {
-    MP1.step();
+    // какая то хрень с аддером, прилетает id=6 на к1
+    MP1.stepConv();
     CC1.step();
-    if (MP1.wait == true) MP1.step();
+    MP1.stepWait();
+    //if (MP1.wait == true) MP1.stepConv();
 }
 
 bool checkCommsIsDone(vector<Command> comms)
