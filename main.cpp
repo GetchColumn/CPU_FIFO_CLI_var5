@@ -56,8 +56,14 @@ void step()
 {
     // какая то хрень с аддером, прилетает id=6 на к1
     MP1.stepConv();
+    MP1.stepWait();
     CC1.step();
     MP1.stepWait();
+    MP1.stepWaitCC();
+    if (!MP1.waitCheck() && !CC1.isWorking())
+    {
+        CC1.step();
+    }
     //if (MP1.wait == true) MP1.stepConv();
 }
 

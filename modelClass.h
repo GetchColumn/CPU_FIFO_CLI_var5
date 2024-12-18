@@ -59,6 +59,11 @@ public:
 		if (!CCTask->at(ind).getInCacheState()) indexes.push_back(ind);
 	}
 
+	bool isWorking()
+	{
+		return work;
+	}
+
 	// вызывается каждый такт
 	void step()
 	{
@@ -147,13 +152,27 @@ private:
 		int remainingTimeCV;	// оставшееся время работы мп
 		bool workOnSBCV; // признак работы на СШ
 		bool busy;
+		bool waitCache;
 		int comIndexCV;	// индекс текущей команды
 		deque<int> requestVectCV;
+
+		void busyToggler()
+		{
+			if (remainingTimeCV == 1)
+			{
+				if (this->needNewComms())
+				{
+					cout << "conv. " << convNum << " unbusy" << endl;
+					busy = false;
+				}
+			}
+		}
+
 	public:
 		bool waitCV;	//находится ли поток в режиме ожидания?
 
 		Conveyor() :currentCommandCV(nullptr), commandVectCV(), SB_CV(nullptr), CC_CV(nullptr),
-			convNum(0), requestSBCV(false), waitCV(false), workCV(false), busy(false), remainingTimeCV(0), workOnSBCV(false), comIndexCV(0), requestVectCV()
+			convNum(0), requestSBCV(false), waitCV(false), workCV(false), busy(false), waitCache(false), remainingTimeCV(0), workOnSBCV(false), comIndexCV(0), requestVectCV()
 		{}
 
 		void init(SystemBus* _SB_CV, CacheController* _CC_CV, short _convNum)
@@ -166,15 +185,28 @@ private:
 		bool needNewComms()
 		{
 			int i = 0;
+			//for (const auto& item : commandVectCV)
+			//{
+			//	if (!item->isDone())
+			//	{
+			//		// если команда не выполнена
+			//		i++;
+			//	}
+			//}
+			//if (i <= 1 && remainingTimeCV <= 2 )
+			//{
+			//	return true;
+			//}
+			//return false;
 			for (const auto& item : commandVectCV)
 			{
-				if (!item->isDone())
+				if (!(item->isDone() && item->getInCacheState()))
 				{
-					// если команда не выполнена
+					// команда не сделана
 					i++;
 				}
 			}
-			if (i <= 1)
+			if (i <= 2)
 			{
 				return true;
 			}
@@ -183,11 +215,14 @@ private:
 
 		bool loadCommand(Command* _commandCV)
 		{
-			commandVectCV.push_back(_commandCV);
-			if (_commandCV->getInCacheState())
+			if (!_commandCV->isDone())
 			{
-				busy = true;
-				return true;
+				commandVectCV.push_back(_commandCV);
+				if (_commandCV->getInCacheState())
+				{
+					busy = true;
+					return true;
+				}
 			}
 			return false;
 		}
@@ -197,17 +232,24 @@ private:
 			return busy;
 		}
 
+		bool isWaitCache()
+		{
+			return waitCache;
+		}
+
 		void step()
 		{
 			if (commandVectCV.empty()) return; // если команд нет, выход
 
 			if (workCV == true)
 			{
+				waitCache = false;
 				if (remainingTimeCV != 1)
 				{
 					cout << "K" << convNum << " работает~" << endl;
 					remainingTimeCV--;
 					//draw();
+					this->busyToggler();
 					return;
 				}
 				else
@@ -249,7 +291,7 @@ private:
 					if (whileStopper > commandVectCV.size())
 					{
 						busy = false;
-						cout << "conv.done" << endl;
+						cout << "conv. " << convNum << " done" << endl;
 						return;
 					}
 				}
@@ -265,7 +307,7 @@ private:
 					// цикл для заявок и поиска КЭШ команд
 					if ((requestVectCV.end() == find(requestVectCV.begin(), requestVectCV.end(), comIndexCV)) && !currentCommandCV->getInCacheState())
 					{
-						cout << "Заявка К"<< convNum <<" на команду " << comIndexCV << endl;
+						cout << "Заявка К"<< convNum <<" на команду " << commandVectCV.at(comIndexCV)->getId() << endl;
 						requestVectCV.push_back(comIndexCV);
 						CC_CV->load(currentCommandCV->getId());
 					}
@@ -276,10 +318,14 @@ private:
 					whileStopper++;
 					if (whileStopper > commandVectCV.size())
 					{
-						//cout << "CCfinder done" << endl;
+						cout << "CCfinder done "<< convNum << endl;
+						busyToggler();
+						waitCache = true;
 						return;
 						//break;
 					}
+					waitCache = false;
+
 				}
 
 			}
@@ -290,6 +336,7 @@ private:
 				cout << "К" << convNum <<" Декодирование " << currentCommandCV->getId() << endl;
 				//drawDecode()
 				busy = true;
+				waitCache = false;
 				currentCommandCV->markDecoded();
 				return;
 			}
@@ -319,6 +366,7 @@ private:
 				// draw
 				workCV = true;
 				remainingTimeCV = currentCommandCV->getDuration();
+				this->busyToggler();
 				return;
 			}
 
@@ -356,6 +404,7 @@ public:
 				{
 					if (comIndex >= (commandVectMP->size())) break; // защита от убегания индекса
 					flag1 = !CV1.loadCommand(&commandVectMP->at(comIndex));
+					cout << "command " << comIndex << "to CV1" << endl;
 					comIndex++;
 				}
 			}
@@ -366,6 +415,7 @@ public:
 				{
 					if (comIndex >= (commandVectMP->size())) break; // защита от убегания индекса
 					flag2 = !CV2.loadCommand(&commandVectMP->at(comIndex));
+					cout << "command " << comIndex << "to CV2" << endl;
 					comIndex++;
 				}
 			}
@@ -375,9 +425,10 @@ public:
 	void commandAdder()
 	{
 		// если кто-то не работает
-
+		// то получает работу!
 		if (CV1.needNewComms())
 		{
+			cout << endl << "cv1 needcommands" << endl;
 			bool flag1 = true;
 			while (flag1)
 			{
@@ -388,6 +439,7 @@ public:
 		}
 		if (CV2.needNewComms())
 		{
+			cout << endl << "cv2 needcommands" << endl;
 			bool flag2 = true;
 			while (flag2)
 			{
@@ -419,17 +471,29 @@ public:
 		CV1.step();
 		CV2.step();
 
-		//if (CV1.needNewComms() || CV2.needNewComms())
-		//{
-		//	commandAdder();
-		//}
+		//commandAdder();
 
+	}
+
+	bool waitCheck()
+	{
+		bool flagWait = false;
+		if (CV1.waitCV == true) flagWait = true;
+		if (CV2.waitCV == true) flagWait = true;
+		return flagWait;
 	}
 
 	void stepWait()
 	{
 		if (CV1.waitCV == true) CV1.step();
 		if (CV2.waitCV == true) CV2.step();
+
+	}
+
+	void stepWaitCC()
+	{
+		if (!CV1.isBusy() && CV1.isWaitCache()) CV1.step();
+		if (!CV2.isBusy() && CV2.isWaitCache()) CV2.step();
 	}
 
 	//void step()
