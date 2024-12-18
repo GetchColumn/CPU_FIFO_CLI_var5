@@ -10,7 +10,7 @@ using namespace std;
 // System bus
 class SystemBus
 {
-	bool busy;
+	bool busy; // признак того что системная шина занята
 public:
 	SystemBus() : busy(false)
 	{}
@@ -26,10 +26,10 @@ public:
 class CacheController
 {
 private:
-	SystemBus *SB_CC;
-	bool requestSB = false;	//Нужно ли КК освободить СШ?
-	bool work = false;	//Работает ли КК
-	const int durationCommand;	//Длительность работы КК
+	SystemBus *SB_CC; // указатель на объект системной шины
+	bool requestSB = false;	// Нужно ли КК освободить СШ?
+	bool work = false;	// Работает ли КК
+	const int durationCommand;	// Длительность работы КК
 	int remainingTime;	// оставшиеся такты до окончания работы КК
 	int currentIndex;	// индекс текущей команды
 	vector<Command> *CCTask;	// список всех команд
@@ -127,12 +127,12 @@ public:
 class Microprocessor
 {
 private:
-	vector<Command> *commandVectMP;
-	Command *currentCommand;
-	SystemBus *SB_MP;
-	CacheController *CC_MP;
-	bool requestSB; // запрос на использование СШ
-	bool work;     //работает ли процессор?
+	vector<Command> *commandVectMP; // указатель на вектор с командами
+	Command *currentCommand;	// указатель на текущую команду
+	SystemBus *SB_MP;	// указатель на объект класса "системная шина"
+	CacheController *CC_MP;	// указатель на объект класса "кэш-контроллер"
+	bool requestSB; // флаг запроса на использование системной шины
+	bool work;	// признак работы микропроцессора
 //	int remainingTime;	// оставшееся время работы мп
 //	bool workOnSB; // признак работы на СШ
 	int countConv;	// количество конвейеров
@@ -141,20 +141,20 @@ private:
 
 	class Conveyor
 	{
-		vector<Command*> commandVectCV;
-		Command* currentCommandCV;
-		SystemBus* SB_CV;
-		CacheController* CC_CV;
-		vector<Command> commVectCV;
-		short convNum;
-		bool requestSBCV; // запрос на использование СШ
-		bool workCV;     //работает ли процессор?
-		int remainingTimeCV;	// оставшееся время работы мп
+		vector<Command*> commandVectCV; // вектор указателей на указатели в векторе команд микропроцессора
+		Command* currentCommandCV;	// указатель на текущую команду
+		SystemBus* SB_CV;	// указатель на объект класса "системная шина"
+		CacheController* CC_CV;	// указатель на объект класса "кэш-контроллер"
+		//vector<Command> commVectCV;
+		short convNum;	// номер конвеера
+		bool requestSBCV; // запрос на использование системной шины
+		bool workCV;     // признак работы конвеера
+		int remainingTimeCV;	// оставшееся время работы конвеера
 		bool workOnSBCV; // признак работы на СШ
-		bool busy;
-		bool waitCache;
+		bool busy;	// признак того что у конвеера есть работа
+		bool waitCache;	// признак того что конвеер ожидает загрузки команды в кэш
 		int comIndexCV;	// индекс текущей команды
-		deque<int> requestVectCV;
+		deque<int> requestVectCV;	// структура данных с индексами н.к. команд
 
 		void busyToggler()
 		{
@@ -378,7 +378,7 @@ private:
 
 public:
 
-	bool wait;     //находится ли процессор в режиме ожидания?
+	bool wait;	//находится ли процессор в режиме ожидания?
 
 	Microprocessor(SystemBus* _SB_MP, CacheController* _CC_MP) :currentCommand(nullptr), commandVectMP(nullptr), SB_MP(_SB_MP), CC_MP(_CC_MP),
 		requestSB(false), wait(false), work(false), countConv(1), comIndex(0)
@@ -495,128 +495,4 @@ public:
 		if (!CV1.isBusy() && CV1.isWaitCache()) CV1.step();
 		if (!CV2.isBusy() && CV2.isWaitCache()) CV2.step();
 	}
-
-	//void step()
-	//{
-	//	if (work == true)
-	//	{
-	//		if (remainingTime != 1)
-	//		{
-	//			cout << "МП работает~" << endl;
-	//			remainingTime--;
-	//			//draw();
-	//			return;
-	//		}
-	//		else
-	//		{
-	//			cout << "Команда (" << comIndex << ") выполнена" << endl;
-	//			work = false;
-	//			if (workOnSB) SB_MP->releaseBus(); // отпустить СШ если работал на ней
-	//			workOnSB = false;
-	//			commandVectMP->at(comIndex).markDone();
-	//			comIndex++;
-
-	//			if (!requestVect.empty())
-	//			{
-	//				// вект запросов не пуст
-	//				if (commandVectMP->at(requestVect.at(0)).getInCacheState())
-	//				{
-	//					comIndex = requestVect.at(0);
-	//					requestVect.pop_front();
-	//				}
-	//			}
-	//		}
-	//	}
-
-	//	if (comIndex >= (commandVectMP->size())) comIndex = 0; // защита от убегания индекса
-	//	//////////
-	//	currentCommand = &(commandVectMP->at(comIndex)); // получение текущей команды по индексу
-	//	
-	//	// поиск и получение невыполненной команды
-	//	if (currentCommand->isDone() == true)
-	//	{
-	//		int whileStopper = 0;
-	//		while (currentCommand->isDone())
-	//		{
-	//			comIndex++;
-	//			////////
-	//			if (comIndex >= (commandVectMP->size())) comIndex = 0; // защита от убегания индекса
-	//			currentCommand = &(commandVectMP->at(comIndex)); // получение текущей команды по индексу
-	//			whileStopper++;
-	//			if (whileStopper > commandVectMP->size())
-	//			{
-	//				cout << "conv.done" << endl;
-	//				return;
-	//				break; // conv done
-	//			}
-	//		}
-	//	}
-
-	//	// проверка команды на нахождение в кэше
-	//	if (!currentCommand->getInCacheState())
-	//	{
-
-	//		int whileStopper = 0;
-	//		while (!(currentCommand->getInCacheState() && !currentCommand->isDone()))
-	//		{
-	//			// цикл для заявок и поиска КЭШ команд
-	//			if ((requestVect.end() == find(requestVect.begin(), requestVect.end(), comIndex)) && !currentCommand->getInCacheState())
-	//			{
-	//				cout << "Заявка на команду " << comIndex << endl;
-	//				requestVect.push_back(comIndex);
-	//				CC_MP->load(currentCommand->getId());
-	//			}
-	//			comIndex++;
-	//			if (comIndex >= (commandVectMP->size())) comIndex = 0; // защита от убегания индекса
-	//			//////////
-	//			currentCommand = &(commandVectMP->at(comIndex)); // получение текущей команды по индексу
-	//			whileStopper++;
-	//			if (whileStopper > commandVectMP->size())
-	//			{
-	//				//cout << "CCfinder done" << endl;
-	//				return;
-	//				//break;
-	//			}
-	//		}
-
-	//	}
-	//	
-	//	// декодирование, если не сделано
-	//	if (!currentCommand->isDecoded())
-	//	{
-	//		cout << "Декодирование " << currentCommand->getId() << endl;
-	//		//drawDecode()
-	//		currentCommand->markDecoded();
-	//		return;
-	//	}
-	//	// проверка команды на УО
-	//	if (currentCommand->getUO())
-	//	{
-	//		if (SB_MP->isBusy())
-	//		{
-	//			wait = true;
-	//			//drawNull()
-	//			return;
-	//		}
-	//		else
-	//		{
-	//			cout << "МП на СШ с командой " << currentCommand->getId() << endl;
-	//			work = true;
-	//			workOnSB = true;
-	//			wait = false;
-	//			SB_MP->takeBus();
-	//			remainingTime = (currentCommand->getDuration()) * 2;
-	//			return;
-	//		}
-	//	}
-	//	else
-	//	{
-	//		cout << "МП с командой " << currentCommand->getId() << endl;
-	//		// draw
-	//		work = true;
-	//		remainingTime = currentCommand->getDuration();
-	//		return;
-	//	}
-	//}
-
 };

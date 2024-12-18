@@ -1,12 +1,15 @@
 ﻿#include <iostream>
 #include <vector>
 #include <Windows.h>
+#include <chrono>
 
 #include "commanderClass.h"
 #include "modelClass.h"
 
 #define COMM_IN_CACHE 75
 #define COMM_COUNT 15
+
+int clockSpeed = 300;
 
 using namespace std;
 
@@ -42,6 +45,7 @@ int main()
     MP1.loadCommands(&commandListFull);
     CC1.init(&commandListFull);
     //MP1.printVars();
+    auto start = std::chrono::high_resolution_clock::now();
 
     int plotY = 0;
     while (!checkCommsIsDone(commandListFull))
@@ -50,6 +54,11 @@ int main()
         cout << endl << "Такт " << plotY << endl;
         step();
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+    cout << "Время выполнения программы: " << duration.count() << " сек." << endl;
+    cout << "Производительность системы: " << (commandListFull.capacity() * clockSpeed) / plotY << " MIPS" << endl;
+
 }
 
 void step()
