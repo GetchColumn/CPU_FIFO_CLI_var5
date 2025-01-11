@@ -57,13 +57,13 @@ int main()
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration = end - start;
     cout << "Время выполнения программы: " << duration.count() << " сек." << endl;
-    cout << "Производительность системы: " << (commandListFull.capacity() * clockSpeed) / plotY << " MIPS" << endl;
+    cout << "Производительность системы: " << (commandListFull.capacity() * clockSpeed) / plotY << " миллионов инструкций в сек." << endl;
 
 }
 
 void step()
 {
-    // какая то хрень с аддером, прилетает id=6 на к1
+    // какая то хрень
     MP1.stepConv();
     MP1.stepWait();
     CC1.step();

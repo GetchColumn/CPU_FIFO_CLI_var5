@@ -137,7 +137,7 @@ private:
 //	bool workOnSB; // признак работы на СШ
 	int countConv;	// количество конвейеров
 	int comIndex;	// индекс текущей команды
-	//deque<int> requestVect;
+	deque<int> requestDeque;
 
 	class Conveyor
 	{
@@ -145,20 +145,21 @@ private:
 		Command* currentCommandCV;	// указатель на текущую команду
 		SystemBus* SB_CV;	// указатель на объект класса "системная шина"
 		CacheController* CC_CV;	// указатель на объект класса "кэш-контроллер"
+		deque<int>* RQ;
 		//vector<Command> commVectCV;
 		short convNum;	// номер конвеера
 		bool requestSBCV; // запрос на использование системной шины
 		bool workCV;     // признак работы конвеера
 		int remainingTimeCV;	// оставшееся время работы конвеера
 		bool workOnSBCV; // признак работы на СШ
-		bool busy;	// признак того что у конвеера есть работа
+		bool busy;	// признак того что у конвейра есть работа
 		bool waitCache;	// признак того что конвеер ожидает загрузки команды в кэш
 		int comIndexCV;	// индекс текущей команды
 		deque<int> requestVectCV;	// структура данных с индексами н.к. команд
 
 		void busyToggler()
 		{
-			if (remainingTimeCV == 1)
+			if (remainingTimeCV <= 2)
 			{
 				if (this->needNewComms())
 				{
@@ -171,15 +172,16 @@ private:
 	public:
 		bool waitCV;	//находится ли поток в режиме ожидания?
 
-		Conveyor() :currentCommandCV(nullptr), commandVectCV(), SB_CV(nullptr), CC_CV(nullptr),
+		Conveyor() :currentCommandCV(nullptr), RQ(nullptr), commandVectCV(), SB_CV(nullptr), CC_CV(nullptr),
 			convNum(0), requestSBCV(false), waitCV(false), workCV(false), busy(false), waitCache(false), remainingTimeCV(0), workOnSBCV(false), comIndexCV(0), requestVectCV()
 		{}
 
-		void init(SystemBus* _SB_CV, CacheController* _CC_CV, short _convNum)
+		void init(SystemBus* _SB_CV, CacheController* _CC_CV, short _convNum, deque<int>* _RQ)
 		{
 			SB_CV = _SB_CV;
 			CC_CV = _CC_CV;
 			convNum = _convNum;
+			RQ = _RQ;
 		}
 
 		bool needNewComms()
@@ -200,13 +202,14 @@ private:
 			//return false;
 			for (const auto& item : commandVectCV)
 			{
-				if (!(item->isDone() && item->getInCacheState()))
+				//if (!(item->isDone() && item->getInCacheState()))
+				if (!item->isDone() && item->getInCacheState())
 				{
-					// команда не сделана
+					// команда не сделана и в кэше
 					i++;
 				}
 			}
-			if (i <= 2)
+			if (i < 2)
 			{
 				return true;
 			}
@@ -231,13 +234,14 @@ private:
 		{
 			return busy;
 		}
+		bool isWorking() { return this->workCV; }
 
 		bool isWaitCache()
 		{
 			return waitCache;
 		}
 
-		void step()
+		void step(bool zapret = false)
 		{
 			if (commandVectCV.empty()) return; // если команд нет, выход
 
@@ -255,6 +259,10 @@ private:
 				else
 				{
 					cout << "Команда (" << commandVectCV.at(comIndexCV)->getId() << ") выполнена" << endl;
+					if (workOnSBCV && !RQ->empty())
+					{
+						if (RQ->front() == convNum) RQ->pop_front();
+					}
 					workCV = false;
 					if (workOnSBCV) SB_CV->releaseBus(); // отпустить СШ если работал на ней
 					workOnSBCV = false;
@@ -319,7 +327,7 @@ private:
 					if (whileStopper > commandVectCV.size())
 					{
 						cout << "CCfinder done "<< convNum << endl;
-						busyToggler();
+						this->busyToggler();
 						waitCache = true;
 						return;
 						//break;
@@ -343,9 +351,13 @@ private:
 			// проверка команды на УО
 			if (currentCommandCV->getUO())
 			{
-				if (SB_CV->isBusy())
+				if (SB_CV->isBusy() )//|| zapret == true)
 				{
 					waitCV = true;
+					if (find(RQ->begin(), RQ->end(), convNum) == RQ->end())
+					{
+						RQ->push_back(convNum);
+					}
 					//drawNull()
 					return;
 				}
@@ -383,8 +395,8 @@ public:
 	Microprocessor(SystemBus* _SB_MP, CacheController* _CC_MP) :currentCommand(nullptr), commandVectMP(nullptr), SB_MP(_SB_MP), CC_MP(_CC_MP),
 		requestSB(false), wait(false), work(false), countConv(1), comIndex(0)
 	{
-		CV1.init(SB_MP, CC_MP, 1);
-		CV2.init(SB_MP, CC_MP, 2);
+		CV1.init(SB_MP, CC_MP, 1, &requestDeque);
+		CV2.init(SB_MP, CC_MP, 2, &requestDeque);
 	}
 
 	void loadCommands(vector<Command> *_commandVectMP)
@@ -468,10 +480,12 @@ public:
 	void stepConv()
 	{
 		commandFeeder();
+		//bool zapretConv = false;
+		//if (CV2.waitCV) zapretConv = true;
 		CV1.step();
 		CV2.step();
 
-		//commandAdder();
+		commandFeeder();
 
 	}
 
@@ -485,14 +499,26 @@ public:
 
 	void stepWait()
 	{
-		if (CV1.waitCV == true) CV1.step();
-		if (CV2.waitCV == true) CV2.step();
+		if (!requestDeque.empty())
+		{
+			// список запросов не пуст
+			int candidate = requestDeque.front();
+			if (candidate == 1 && !CV1.isWorking()) CV1.step();
+			if (candidate == 2 && !CV2.isWorking()) CV2.step();
+		}
+
+		//bool zapretConv = false;
+		//if (CV2.waitCV) zapretConv = true;
+		//if (CV1.waitCV == true) CV1.step(zapretConv);
+		//if (CV2.waitCV == true) CV2.step();
 
 	}
 
 	void stepWaitCC()
 	{
-		if (!CV1.isBusy() && CV1.isWaitCache()) CV1.step();
+		bool zapretConv = false;
+		if (CV2.waitCV) zapretConv = true;
+		if (!CV1.isBusy() && CV1.isWaitCache()) CV1.step(zapretConv);
 		if (!CV2.isBusy() && CV2.isWaitCache()) CV2.step();
 	}
 };
