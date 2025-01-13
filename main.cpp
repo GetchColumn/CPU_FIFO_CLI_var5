@@ -8,6 +8,7 @@
 
 #define COMM_IN_CACHE 75
 #define COMM_COUNT 15
+#define COMM_DMA_CHANCE 15
 
 int clockSpeed = 300;
 
@@ -28,19 +29,20 @@ int main()
     SetConsoleOutputCP(1251);
 
     setlocale(LC_ALL, "Russian");
-    //genComm(commandListFull, COMM_COUNT, COMM_IN_CACHE); // генерация списка команд
+    //genComm(commandListFull, COMM_COUNT, COMM_IN_CACHE, COMM_DMA_CHANCE); // генерация списка команд
     getUserComm(commandListFull);
+    printCommands(commandListFull);
  
-    for (const auto& item : commandListFull)
-    {
-        Command currCom = item;
+    //for (const auto& item : commandListFull)
+    //{
+    //    Command currCom = item;
 
-        // вывод команд
-        cout << item.getId() << ") \t" << item.getDuration() << "(";
-        if (item.getInCacheState() == 1) cout << "кэш "; else cout << "н.к ";
-        if (item.getUO() == 1) cout << "УО"; else cout << "__";
-        cout << ")" << endl;
-    }
+    //    // вывод команд
+    //    cout << item.getId() << ") \t" << item.getDuration() << "(";
+    //    if (item.getInCacheState() == 1) cout << "кэш "; else cout << "н.к ";
+    //    if (item.getUO() == 1) cout << "УО"; else cout << "__";
+    //    cout << ")" << endl;
+    //}
 
     MP1.loadCommands(&commandListFull);
     CC1.init(&commandListFull);

@@ -147,19 +147,19 @@ private:
 		CacheController* CC_CV;	// указатель на объект класса "кэш-контроллер"
 		deque<int>* RQ;
 		//vector<Command> commVectCV;
-		short convNum;	// номер конвеера
+		short convNum;	// номер конвейера
 		bool requestSBCV; // запрос на использование системной шины
-		bool workCV;     // признак работы конвеера
-		int remainingTimeCV;	// оставшееся время работы конвеера
+		bool workCV;     // признак работы конвейера
+		int remainingTimeCV;	// оставшееся время работы конвейера
 		bool workOnSBCV; // признак работы на СШ
-		bool busy;	// признак того что у конвейра есть работа
-		bool waitCache;	// признак того что конвеер ожидает загрузки команды в кэш
+		bool busy;	// признак того что у конвейера есть работа
+		bool waitCache;	// признак того что конвейер ожидает загрузки команды в кэш
 		int comIndexCV;	// индекс текущей команды
 		deque<int> requestVectCV;	// структура данных с индексами н.к. команд
 
 		void busyToggler()
 		{
-			if (remainingTimeCV <= 2)
+			if (remainingTimeCV < 2)
 			{
 				if (this->needNewComms())
 				{
@@ -386,7 +386,176 @@ private:
 
 	};
 
+	class DMAconv
+	{
+		vector<Command*> commandVectDMA; // вектор указателей на указатели в векторе команд микропроцессора
+		Command* currentCommandDMA;	// указатель на текущую команду
+		Microprocessor* mp;
+		SystemBus* SB_DMA;	// указатель на объект класса "системная шина"
+		//deque<int>* RQ;
+		short convNum;	// номер конвейера
+		bool requestSBDMA; // запрос на использование системной шины
+		bool workDMA;     // признак работы конвейера
+		int remainingTimeDMA;	// оставшееся время работы конвейера
+		bool workOnSBDMA; // признак работы на СШ
+		bool busy;	// признак того что у конвейера есть работа
+		bool waitCache;	// признак того что конвейера ожидает загрузки команды в кэш
+		int comIndexDMA;	// индекс текущей команды
+
+		void busyToggler()
+		{
+			if (remainingTimeDMA <= 2)
+			{
+				if (this->needNewComms())
+				{
+					cout << "conv. " << convNum << " unbusy" << endl;
+					busy = false;
+				}
+			}
+		}
+	public:
+		bool waitDMA;	//находится ли поток в режиме ожидания?
+
+		void init(SystemBus* _SB_CV, Microprocessor* _mp, short _convNum)//, deque<int>* _RQ)
+		{
+			SB_DMA = _SB_CV;
+			convNum = _convNum;
+			mp = _mp;
+			//RQ = _RQ;
+		}
+
+		bool needNewComms()
+		{
+			int i = 0;
+
+			for (const auto& item : commandVectDMA)
+			{
+				//if (!(item->isDone() && item->getInCacheState()))
+				if (!item->isDone() && item->getInCacheState())
+				{
+					// команда не сделана и в кэше
+					i++;
+				}
+			}
+			if (i < 2)
+			{
+				return true;
+			}
+			return false;
+		}
+
+		bool loadCommand(Command* _commandCV)
+		{
+			if (!_commandCV->isDone())
+			{
+				commandVectDMA.push_back(_commandCV);
+
+				if (_commandCV->getInCacheState())
+				{
+					busy = true;
+					return true;
+				}
+			}
+			return false;
+		}
+
+		bool isBusy()
+		{
+			return busy;
+		}
+		bool isWorking() { return this->workDMA; }
+
+		bool isWaitCache()
+		{
+			return waitCache;
+		}
+
+		void step(bool zapret = false)
+		{
+			if (commandVectDMA.empty()) return; // если команд нет, выход
+
+			if (workDMA == true)
+			{
+				waitCache = false;
+				if (remainingTimeDMA != 1)
+				{
+					cout << "DMA " << convNum << " работает~" << endl;
+					remainingTimeDMA--;
+					//draw();
+					//this->busyToggler();
+					return;
+				}
+				else
+				{
+					cout << "Команда на DMA (" << commandVectDMA.at(comIndexDMA)->getId() << ") выполнена" << endl;
+					//if (workOnSBDMA && !RQ->empty())
+					//{
+					//	if (RQ->front() == convNum) RQ->pop_front();
+					//}
+					workDMA = false;
+					if (workOnSBDMA) SB_DMA->releaseBus(); // отпустить СШ если работал на ней
+					workOnSBDMA = false;
+					commandVectDMA.at(comIndexDMA)->markDone();
+					comIndexDMA++;
+				}
+			}
+
+			if (comIndexDMA >= (commandVectDMA.size())) comIndexDMA = 0; // защита от убегания индекса
+			currentCommandDMA = (commandVectDMA.at(comIndexDMA)); // получение текущей команды по индексу
+
+			// поиск и получение невыполненной команды
+			if (currentCommandDMA->isDone() == true)
+			{
+				int whileStopper = 0;
+				while (currentCommandDMA->isDone())
+				{
+					comIndexDMA++;
+					if (comIndexDMA >= (commandVectDMA.size())) comIndexDMA = 0; // защита от убегания индекса
+					currentCommandDMA = (commandVectDMA.at(comIndexDMA)); // получение текущей команды по индексу
+					whileStopper++;
+					if (whileStopper > commandVectDMA.size())
+					{
+						busy = false;
+						cout << "dma " << convNum << " done" << endl;
+						return;
+					}
+				}
+			}
+
+			// проверка занятости СШ
+			if (SB_DMA->isBusy())
+			{
+				waitDMA = true;
+				//if (find(RQ->begin(), RQ->end(), convNum) == RQ->end())
+				//{
+				//	RQ->push_back(convNum);
+				//}
+				//drawNull()
+				return;
+			}
+			else
+			{
+				if (!mp->waitCheck())
+				{
+					cout << "DMA" << convNum << " на СШ с командой " << currentCommandDMA->getId() << endl;
+					workDMA = true;
+					workOnSBDMA = true;
+					waitDMA = false;
+					SB_DMA->takeBus();
+					remainingTimeDMA = (currentCommandDMA->getDuration()) * 2;
+					return;
+				}
+				else
+				{
+					waitDMA = true;
+					return;
+				}
+			}
+		}
+	};
+
 	Conveyor CV1, CV2;
+	DMAconv DMA1;
 
 public:
 
@@ -397,6 +566,7 @@ public:
 	{
 		CV1.init(SB_MP, CC_MP, 1, &requestDeque);
 		CV2.init(SB_MP, CC_MP, 2, &requestDeque);
+		DMA1.init(SB_MP, this, 3);//, &requestDeque);
 	}
 
 	void loadCommands(vector<Command> *_commandVectMP)
@@ -415,6 +585,17 @@ public:
 				while (flag1)
 				{
 					if (comIndex >= (commandVectMP->size())) break; // защита от убегания индекса
+					if (commandVectMP->at(comIndex).isDMA())
+					{
+						// если команда dma, поиск не dma
+						while (commandVectMP->at(comIndex).isDMA())
+						{
+							DMA1.loadCommand(&commandVectMP->at(comIndex));
+							cout << "command " << comIndex << "to DMA" << endl;
+							comIndex++;
+							if (comIndex >= (commandVectMP->size())) break; // защита от убегания индекса
+						}
+					}
 					flag1 = !CV1.loadCommand(&commandVectMP->at(comIndex));
 					cout << "command " << comIndex << "to CV1" << endl;
 					comIndex++;
@@ -426,6 +607,17 @@ public:
 				while (flag2)
 				{
 					if (comIndex >= (commandVectMP->size())) break; // защита от убегания индекса
+					if (commandVectMP->at(comIndex).isDMA())
+					{
+						// если команда dma, поиск не dma
+						while (commandVectMP->at(comIndex).isDMA())
+						{
+							DMA1.loadCommand(&commandVectMP->at(comIndex));
+							cout << "command " << comIndex << "to DMA" << endl;
+							comIndex++;
+							if (comIndex >= (commandVectMP->size())) break; // защита от убегания индекса
+						}
+					}
 					flag2 = !CV2.loadCommand(&commandVectMP->at(comIndex));
 					cout << "command " << comIndex << "to CV2" << endl;
 					comIndex++;
@@ -480,11 +672,9 @@ public:
 	void stepConv()
 	{
 		commandFeeder();
-		//bool zapretConv = false;
-		//if (CV2.waitCV) zapretConv = true;
 		CV1.step();
 		CV2.step();
-
+		DMA1.step();
 		commandFeeder();
 
 	}

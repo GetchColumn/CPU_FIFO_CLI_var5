@@ -10,7 +10,7 @@ class Command
 	int duration;	// длительность в тактах
 	bool inCache;	// признак нахождения в кэше 1- КЭШ, 0- Н.К.
 	bool UO;	// тип команды. 1-требует СШ, 0- не требует СШ
-	bool floatType; // признак типа с плавающей точкой
+	bool DMA;	// признак команды прямого доступа
 	bool decoded;	// признак того что команда декодирована
 	bool done;	// признак выполненной команды
 
@@ -21,21 +21,20 @@ public:
 		duration = 0;
 		inCache = false;
 		UO = false;
+		DMA = false;
 		done = false;
-		floatType = false;
 		decoded = false;
 	}
 
-	Command(int _id, int _duration, bool _inCache, bool _type)
+	Command(int _id, int _duration, bool _inCache, bool _type, bool _DMA)
 	{
 		id = _id;
 		duration = _duration;
 		inCache = _inCache;
 		UO = _type;
+		DMA = _DMA;
 		done = false;
 		decoded = false;
-		// для 2 лр
-		floatType = false;
 	}
 
 	int getId() const
@@ -62,13 +61,13 @@ public:
 	{
 		return done;
 	}
-	bool isDone()
+	bool isDone() const
 	{
 		return done;
 	}
-	bool isFloat()
+	bool isDMA() const
 	{
-		return floatType;
+		return DMA;
 	}
 	void setInCache()
 	{
@@ -84,6 +83,6 @@ public:
 	}
 };
 
-void genComm(vector<Command>& commList, const int commandCount, const int inCacheChance);
+void genComm(vector<Command>& commList, const int commandCount, const int inCacheChance, const int dmaChance);
 void getUserComm(vector<Command>& commList);
 void printCommands(vector<Command> cmdVect);
